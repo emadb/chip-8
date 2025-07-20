@@ -1,0 +1,9 @@
+[package]
+name = "chip-8"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actually_beep = "0.1.1"
+macroquad = "0.4.14"
+rand = "0.9.1"
