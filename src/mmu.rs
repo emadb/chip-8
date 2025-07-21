@@ -13,11 +13,11 @@ impl Mmu {
         Mmu { ram: base_ram }
     }
 
-    pub fn read_byte(&self, address: u16) -> u8 {
-        self.ram[address as usize]
+    pub fn read_byte(&self, addr: u16) -> u8 {
+        self.ram[addr as usize]
     }
 
-    pub(crate) fn write_byte(&mut self, addr: u16, value: u8) {
+    pub fn write_byte(&mut self, addr: u16, value: u8) {
         self.ram[addr as usize] = value;
     }
 }
