@@ -1,3 +1,4 @@
+pub mod bus;
 pub mod constants;
 pub mod cpu;
 pub mod display;
@@ -13,20 +14,20 @@ use mmu::Mmu;
 
 use std::fs;
 
+use crate::bus::Bus;
+
 pub struct Chip8 {
     cpu: Cpu,
-    memory: Mmu,
-    display: Display,
-    keypad: Keypad,
+    bus: Bus,
 }
 
 impl Chip8 {
     pub fn new(rom_data: &[u8]) -> Self {
+        let bus = Bus::new(Mmu::load(rom_data), Display::new(), Keypad::new());
+
         Chip8 {
             cpu: Cpu::new(),
-            memory: Mmu::load(rom_data),
-            display: Display::new(),
-            keypad: Keypad::new(),
+            bus: bus,
         }
     }
 
@@ -40,19 +41,18 @@ impl Chip8 {
     }
 
     pub fn press_key(&mut self, key: u8) {
-        self.keypad.press_key(key);
+        self.bus.keypad.press_key(key);
     }
 
     pub fn clear_key(&mut self) {
-        self.keypad.clear();
+        self.bus.keypad.clear();
     }
 
     pub fn update(&mut self) {
-        self.cpu
-            .tick(&mut self.memory, &mut self.display, &self.keypad);
+        self.cpu.tick(&mut self.bus);
     }
 
     pub fn get_pixels(&self) -> [[u8; SCREEN_HEIGHT as usize]; SCREEN_WIDTH as usize] {
-        self.display.get_pixels()
+        self.bus.display.get_pixels()
     }
 }

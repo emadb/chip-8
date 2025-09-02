@@ -1,4 +1,4 @@
-use crate::{display::Display, keypad::Keypad, mmu::Mmu, stack::Stack};
+use crate::{bus::Bus, display::Display, keypad::Keypad, mmu::Mmu, stack::Stack};
 use rand::random;
 
 pub struct Cpu {
@@ -22,9 +22,9 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, memory: &mut Mmu, display: &mut Display, keypad: &Keypad) -> () {
-        let opcode = self.fetch_op(memory);
-        self.execute_instruction(opcode, memory, display, keypad);
+    pub fn tick(&mut self, bus: &mut Bus) -> () {
+        let opcode = self.fetch_op(&bus.memory);
+        self.execute_instruction(opcode, bus);
     }
 
     fn fetch_op(&mut self, memory: &Mmu) -> u16 {
@@ -34,17 +34,11 @@ impl Cpu {
         ((hb << 8) | lb) as u16
     }
 
-    fn execute_instruction(
-        &mut self,
-        op: u16,
-        memory: &mut Mmu,
-        display: &mut Display,
-        keypad: &Keypad,
-    ) {
+    fn execute_instruction(&mut self, op: u16, bus: &mut Bus) {
         let digits = nibbles(op);
 
         match digits {
-            (0x0, 0x0, 0xE, 0x0) => self.cls(display),
+            (0x0, 0x0, 0xE, 0x0) => self.cls(&mut bus.display),
             (0x0, 0x0, 0xE, 0xE) => self.ret(),
             (0x1, a, b, c) => self.jmp(compose3(a, b, c)),
             (0x2, a, b, c) => self.call(compose3(a, b, c)),
@@ -66,18 +60,18 @@ impl Cpu {
             (0xA, a, b, c) => self.set_i(compose3(a, b, c)),
             (0xB, a, b, c) => self.jp_v0(compose3(a, b, c)),
             (0xC, x, b, c) => self.rnd_vx(x, b << 4 | c),
-            (0xD, x, y, n) => self.drw(x, y, n, memory, display),
-            (0xE, x, 0x9, 0xE) => self.skip_vx(x, keypad),
-            (0xE, x, 0xA, 0x1) => self.skip_nvx(x, keypad),
+            (0xD, x, y, n) => self.drw(x, y, n, &bus.memory, &mut bus.display),
+            (0xE, x, 0x9, 0xE) => self.skip_vx(x, &bus.keypad),
+            (0xE, x, 0xA, 0x1) => self.skip_nvx(x, &bus.keypad),
             (0xF, x, 0x0, 0x7) => self.ld_vx_dt(x),
-            (0xF, x, 0x0, 0xA) => self.ld_vx_k(x, keypad),
+            (0xF, x, 0x0, 0xA) => self.ld_vx_k(x, &bus.keypad),
             (0xF, x, 0x1, 0x5) => self.ld_dt_vx(x),
             (0xF, x, 0x1, 0x8) => self.ld_st_vx(x),
             (0xF, x, 0x1, 0xE) => self.add_i_vx(x),
             (0xF, x, 0x2, 0x9) => self.ld_f_vx(x),
-            (0xF, x, 0x3, 0x3) => self.ld_b_vx(x, memory),
-            (0xF, x, 0x5, 0x5) => self.ld_i_vx(x, memory),
-            (0xF, x, 0x6, 0x5) => self.ld_vx_i(x, memory),
+            (0xF, x, 0x3, 0x3) => self.ld_b_vx(x, &mut bus.memory),
+            (0xF, x, 0x5, 0x5) => self.ld_i_vx(x, &mut bus.memory),
+            (0xF, x, 0x6, 0x5) => self.ld_vx_i(x, &mut bus.memory),
             (_, _, _, _) => unimplemented!("Bad opcode: {}", op),
         }
     }
