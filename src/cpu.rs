@@ -30,13 +30,6 @@ impl Cpu {
     fn fetch_op(&mut self, memory: &Mmu) -> u16 {
         let hb = memory.read_byte(self.pc) as u16;
         let lb = memory.read_byte(self.pc + 1) as u16;
-
-        // println!(
-        //     ">> {:#X}:{:#X}: ",
-        //     self.pc,
-        //     ((hb << 8) | lb)
-        // );
-
         self.pc += 2;
         ((hb << 8) | lb) as u16
     }

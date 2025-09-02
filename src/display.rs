@@ -1,7 +1,9 @@
 use crate::constants::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
+pub type Screen = [[u8; SCREEN_HEIGHT as usize]; SCREEN_WIDTH as usize];
+
 pub struct Display {
-    screen: [[u8; SCREEN_HEIGHT as usize]; SCREEN_WIDTH as usize],
+    screen: Screen,
 }
 
 impl Display {
@@ -31,14 +33,14 @@ impl Display {
     }
 
     pub fn clear(&mut self) {
-        for x in 0..SCREEN_WIDTH {
-            for y in 0..SCREEN_HEIGHT {
-                self.screen[x as usize][y as usize] = 0;
+        for row in self.screen.iter_mut() {
+            for pixel in row.iter_mut() {
+                *pixel = 0;
             }
         }
     }
 
-    pub fn get_pixels(&self) -> [[u8; SCREEN_HEIGHT as usize]; SCREEN_WIDTH as usize] {
+    pub fn get_pixels(&self) -> Screen {
         self.screen
     }
 }
