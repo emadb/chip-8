@@ -41,11 +41,11 @@ impl Chip8 {
     }
 
     pub fn press_key(&mut self, key: u8) {
-        self.bus.keypad.press_key(key);
+        self.bus.press_key(key);
     }
 
     pub fn clear_key(&mut self) {
-        self.bus.keypad.clear();
+        self.bus.reset_keypad();
     }
 
     pub fn update(&mut self) {
@@ -53,6 +53,6 @@ impl Chip8 {
     }
 
     pub fn get_pixels(&self) -> [[u8; SCREEN_HEIGHT as usize]; SCREEN_WIDTH as usize] {
-        self.bus.display.get_pixels()
+        self.bus.get_pixels()
     }
 }

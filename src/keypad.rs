@@ -24,7 +24,7 @@ impl Keypad {
         self.last_key_pressed = Some(key);
     }
 
-    pub fn clear(&mut self) {
+    pub fn reset(&mut self) {
         for k in 0..16 {
             self.keys[k] = false;
         }

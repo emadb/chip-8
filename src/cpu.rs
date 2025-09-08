@@ -1,4 +1,4 @@
-use crate::{bus::Bus, display::Display, keypad::Keypad, mmu::Mmu, stack::Stack};
+use crate::{bus::Bus, stack::Stack};
 use rand::random;
 
 pub struct Cpu {
@@ -23,13 +23,13 @@ impl Cpu {
     }
 
     pub fn tick(&mut self, bus: &mut Bus) -> () {
-        let opcode = self.fetch_op(&bus.memory);
+        let opcode = self.fetch_op(bus);
         self.execute_instruction(opcode, bus);
     }
 
-    fn fetch_op(&mut self, memory: &Mmu) -> u16 {
-        let hb = memory.read_byte(self.pc) as u16;
-        let lb = memory.read_byte(self.pc + 1) as u16;
+    fn fetch_op(&mut self, bus: &mut Bus) -> u16 {
+        let hb = bus.read_byte(self.pc) as u16;
+        let lb = bus.read_byte(self.pc + 1) as u16;
         self.pc += 2;
         ((hb << 8) | lb) as u16
     }
@@ -38,7 +38,7 @@ impl Cpu {
         let digits = nibbles(op);
 
         match digits {
-            (0x0, 0x0, 0xE, 0x0) => self.cls(&mut bus.display),
+            (0x0, 0x0, 0xE, 0x0) => self.cls(bus),
             (0x0, 0x0, 0xE, 0xE) => self.ret(),
             (0x1, a, b, c) => self.jmp(compose3(a, b, c)),
             (0x2, a, b, c) => self.call(compose3(a, b, c)),
@@ -60,24 +60,24 @@ impl Cpu {
             (0xA, a, b, c) => self.set_i(compose3(a, b, c)),
             (0xB, a, b, c) => self.jp_v0(compose3(a, b, c)),
             (0xC, x, b, c) => self.rnd_vx(x, b << 4 | c),
-            (0xD, x, y, n) => self.drw(x, y, n, &bus.memory, &mut bus.display),
-            (0xE, x, 0x9, 0xE) => self.skip_vx(x, &bus.keypad),
-            (0xE, x, 0xA, 0x1) => self.skip_nvx(x, &bus.keypad),
+            (0xD, x, y, n) => self.drw(x, y, n, bus),
+            (0xE, x, 0x9, 0xE) => self.skip_vx(x, bus),
+            (0xE, x, 0xA, 0x1) => self.skip_nvx(x, bus),
             (0xF, x, 0x0, 0x7) => self.ld_vx_dt(x),
-            (0xF, x, 0x0, 0xA) => self.ld_vx_k(x, &bus.keypad),
+            (0xF, x, 0x0, 0xA) => self.ld_vx_k(x, bus),
             (0xF, x, 0x1, 0x5) => self.ld_dt_vx(x),
             (0xF, x, 0x1, 0x8) => self.ld_st_vx(x),
             (0xF, x, 0x1, 0xE) => self.add_i_vx(x),
             (0xF, x, 0x2, 0x9) => self.ld_f_vx(x),
-            (0xF, x, 0x3, 0x3) => self.ld_b_vx(x, &mut bus.memory),
-            (0xF, x, 0x5, 0x5) => self.ld_i_vx(x, &mut bus.memory),
-            (0xF, x, 0x6, 0x5) => self.ld_vx_i(x, &mut bus.memory),
+            (0xF, x, 0x3, 0x3) => self.ld_b_vx(x, bus),
+            (0xF, x, 0x5, 0x5) => self.ld_i_vx(x, bus),
+            (0xF, x, 0x6, 0x5) => self.ld_vx_i(x, bus),
             (_, _, _, _) => unimplemented!("Bad opcode: {}", op),
         }
     }
 
-    fn cls(&self, display: &mut Display) {
-        display.clear();
+    fn cls(&self, bus: &mut Bus) {
+        bus.clear_display();
     }
 
     fn ret(&mut self) {
@@ -188,7 +188,7 @@ impl Cpu {
         self.v[x as usize] = rnd & v;
     }
 
-    fn drw(&mut self, x: u8, y: u8, n: u8, mem: &Mmu, display: &mut Display) {
+    fn drw(&mut self, x: u8, y: u8, n: u8, bus: &mut Bus) {
         let x = self.v[x as usize] as u16;
         let y = self.v[y as usize] as u16;
 
@@ -196,11 +196,11 @@ impl Cpu {
 
         for y_line in 0..n {
             let addr = self.i + y_line as u16;
-            let pixels = mem.read_byte(addr);
+            let pixels = bus.read_byte(addr);
             sprite.push(pixels);
         }
 
-        let flipped = display.draw(x, y, sprite);
+        let flipped = bus.draw(x, y, sprite);
 
         if flipped {
             self.v[0xF] = 1;
@@ -209,14 +209,14 @@ impl Cpu {
         }
     }
 
-    fn skip_vx(&mut self, x: u8, keypad: &Keypad) {
-        if keypad.get_key(self.v[x as usize]) {
+    fn skip_vx(&mut self, x: u8, bus: &Bus) {
+        if bus.get_key(self.v[x as usize]) {
             self.pc += 2;
         }
     }
 
-    fn skip_nvx(&mut self, x: u8, keypad: &Keypad) {
-        if !keypad.get_key(self.v[x as usize]) {
+    fn skip_nvx(&mut self, x: u8, bus: &Bus) {
+        if !bus.get_key(self.v[x as usize]) {
             self.pc += 2;
         }
     }
@@ -225,8 +225,8 @@ impl Cpu {
         self.v[x as usize] = self.dt;
     }
 
-    fn ld_vx_k(&mut self, x: u8, keypad: &Keypad) {
-        let key_pressed = keypad.get_key_pressed();
+    fn ld_vx_k(&mut self, x: u8, bus: &Bus) {
+        let key_pressed = bus.get_key_pressed();
         if let Some(key) = key_pressed {
             self.v[x as usize] = key;
         } else {
@@ -251,26 +251,26 @@ impl Cpu {
         self.i = font * 5;
     }
 
-    fn ld_b_vx(&self, x: u8, memory: &mut Mmu) {
+    fn ld_b_vx(&self, x: u8, bus: &mut Bus) {
         let vx = self.v[x as usize];
         let hundreds = vx / 100;
         let tens = (vx % 100) / 10;
         let ones = vx % 10;
 
-        memory.write_byte(self.i, hundreds);
-        memory.write_byte(self.i + 1, tens);
-        memory.write_byte(self.i + 2, ones);
+        bus.write_byte(self.i, hundreds);
+        bus.write_byte(self.i + 1, tens);
+        bus.write_byte(self.i + 2, ones);
     }
 
-    fn ld_i_vx(&self, x: u8, memory: &mut Mmu) {
+    fn ld_i_vx(&self, x: u8, bus: &mut Bus) {
         for v in 0..=x {
-            memory.write_byte(self.i + v as u16, self.v[v as usize]);
+            bus.write_byte(self.i + v as u16, self.v[v as usize]);
         }
     }
 
-    fn ld_vx_i(&mut self, x: u8, memory: &mut Mmu) {
+    fn ld_vx_i(&mut self, x: u8, bus: &mut Bus) {
         for v in 0..=x {
-            self.v[v as usize] = memory.read_byte(self.i + v as u16);
+            self.v[v as usize] = bus.read_byte(self.i + v as u16);
         }
     }
 
