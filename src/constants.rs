@@ -1,5 +1,5 @@
 pub const CHIP8_UPDATE_INTERVAL: f64 = 0.02;
-pub const TICKS_PER_FRAME: usize = 10;
+pub const TICKS_PER_FRAME: usize = 12;
 pub const SCREEN_WIDTH: u8 = 64;
 pub const SCREEN_HEIGHT: u8 = 32;
 pub const SCALE_FACTOR: f32 = 10.0;
